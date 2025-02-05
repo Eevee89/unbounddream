@@ -47,6 +47,8 @@ class ServerImpl implements MessageComponentInterface {
 
     public function onMessage(ConnectionInterface $conn, $raw) {
         logMessage(sprintf("New message from '%s': %s", $conn->resourceId, $raw));
+
+        $conn->send("Message well receive");
     }
 
     public function onClose(ConnectionInterface $conn) {
