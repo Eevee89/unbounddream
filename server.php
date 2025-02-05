@@ -12,7 +12,7 @@ use React\Socket\TcpServer;
 
 $env = parse_ini_file(".env");
 $loop = Factory::create();
-$port = '8000';
+$port = '8888';
 $tcp = new TcpServer('127.0.0.1:'.$port, $loop);
 
 $secureTcp = new SecureServer($tcp, $loop, [
