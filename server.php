@@ -23,7 +23,7 @@ $secureTcp = new SecureServer($tcp, $loop, [
     'allow_self_signed' => false
 ]);
 
-$logFile = '/var/log/websocket/unbounddream.log';
+$logFile = '/var/log/websocket/photoroulette.log';
 
 function logMessage($message) {
     global $logFile;
@@ -34,6 +34,8 @@ function logMessage($message) {
 
 class ServerImpl implements MessageComponentInterface {
     protected $clients;
+    protected $images = [];
+    protected $countImg = 0;
 
     public function __construct() {
         $this->clients = new \SplObjectStorage;
@@ -42,13 +44,32 @@ class ServerImpl implements MessageComponentInterface {
     public function onOpen(ConnectionInterface $conn) {
         $this->clients->attach($conn);
         $conn->send("Hello");
-        logMessage("New connection! ({$conn->resourceId})", "0");
+        logMessage("New connection! ({$conn->resourceId})");
     }
 
     public function onMessage(ConnectionInterface $conn, $raw) {
-        logMessage(sprintf("New message from '%s': %s", $conn->resourceId, $raw));
+        if (is_string($raw)) {
+            $msg = json_decode($raw, true);
+            logMessage(sprintf("New message from '%s': %s", $conn->resourceId, $raw));
 
-        $conn->send("Message well receive");
+            if ($msg["type"] == "DOWNIMG") {
+                $filename = $msg["payload"];
+                $fileData = file_get_contents($filename);
+                $conn->send($fileData);
+            }
+        } else {
+            $binaryData = $raw->getContents();
+            logMessage(sprintf("New binary message from '%s': %s octets", $conn->resourceId, strlen($binaryData)));
+
+            $tempFilename = time() . ".png";
+
+            file_put_contents($tempFilename, $binaryData, FILE_APPEND);
+            $res = [
+                "type" => "IMGUP",
+                "payload" => $tempFilename
+            ];
+            $conn->send(json_encode($res));
+        }
     }
 
     public function onClose(ConnectionInterface $conn) {
@@ -57,7 +78,7 @@ class ServerImpl implements MessageComponentInterface {
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
-        logMessage("An error occured on connection {$conn->resourceId}: {$e->getMessage()}", "0");
+        logMessage("An error occured on connection {$conn->resourceId}: {$e->getMessage()}");
         $conn->close();
     }
 }
