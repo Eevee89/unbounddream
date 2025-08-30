@@ -48,27 +48,32 @@ class ServerImpl implements MessageComponentInterface {
     }
 
     public function onMessage(ConnectionInterface $conn, $raw) {
-        if (is_string($raw)) {
-            $msg = json_decode($raw, true);
-            logMessage(sprintf("New message from '%s': %s", $conn->resourceId, $raw));
+        $msg = json_decode($raw, true);
 
-            if ($msg["type"] == "DOWNIMG") {
-                $filename = $msg["payload"];
-                $fileData = file_get_contents($filename);
-                $conn->send($fileData);
-            }
+        if ($msg["type"] === "UPIMG") {
+            logMessage(sprintf("New image message from '%s': length %s", $conn->resourceId, strlen($msg["payload"])));
         } else {
-            $binaryData = $raw->getContents();
-            logMessage(sprintf("New binary message from '%s': %s octets", $conn->resourceId, strlen($binaryData)));
+            logMessage(sprintf("New message from '%s': %s", $conn->resourceId, $raw));
+        }
 
-            $tempFilename = time() . ".png";
+        if ($msg["type"] == "UPIMG") {
+            $fileData = $msg["payload"];
+            $images[$counting] = $fileData;
 
-            file_put_contents($tempFilename, $binaryData, FILE_APPEND);
-            $res = [
+            $conn->send(json_encode([
                 "type" => "IMGUP",
-                "payload" => $tempFilename
-            ];
-            $conn->send(json_encode($res));
+                "payload" => $counting++
+            ]));
+        }
+
+        if ($msg["type"] == "DOWNIMG") {
+            $id = $msg["payload"];
+            $fileData = $images[$id];
+
+            $conn->send(json_encode([
+                "type" => "IMGDOWN",
+                "payload" => $fileData
+            ]));
         }
     }
 
